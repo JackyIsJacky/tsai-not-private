@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>八字格局練習</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  font-family:"Microsoft JhengHei","PingFang TC","Noto Sans TC",sans-serif;
+  background:#1a1a2e; color:#e0d5c1;
+  display:flex; justify-content:center; align-items:flex-start;
+  min-height:100vh; padding:10px;
+}
+.container{max-width:460px;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.title{font-size:1.6em;font-weight:bold;color:#d4a84b;text-align:center;letter-spacing:.15em;padding:6px 0;}
+.score{font-size:.9em;color:#9a8c7a;text-align:center;}
+
+.pillars-wrapper{background:#2d2d1c;border:2px solid #8b7355;border-radius:8px;padding:16px 10px 8px;width:100%;}
+.pillar-headers{display:flex;flex-direction:row-reverse;justify-content:center;gap:2px;margin-bottom:4px;}
+.pillar-headers span{width:68px;text-align:center;font-size:.85em;color:#b8a88a;}
+.pillars-row{display:flex;flex-direction:row-reverse;justify-content:center;gap:6px;margin-bottom:4px;}
+.pillar{display:flex;flex-direction:column;align-items:center;border:1px solid #6b5b3e;border-radius:4px;background:#3d3520;min-width:68px;padding:6px 0;}
+.pillar .stem{font-size:1.8em;font-weight:bold;color:#f0e6c5;line-height:1.3;}
+.pillar .branch{font-size:1.8em;font-weight:bold;color:#e8c87a;line-height:1.3;}
+.hidden-stems{display:flex;flex-direction:row-reverse;justify-content:center;gap:6px;margin-top:4px;}
+.hidden-stems .hs-col{width:68px;text-align:center;font-size:.7em;color:#7a6e5a;line-height:1.6;}
+.hidden-stems.hidden{display:none;}
+.toggle-hs-btn{display:block;margin:8px auto 0;background:none;border:1px solid #5a4a32;color:#9a8c7a;padding:3px 12px;border-radius:10px;font-size:.75em;cursor:pointer;}
+.toggle-hs-btn:hover{color:#d4a84b;border-color:#d4a84b;}
+
+.selection-area{width:100%;background:#252530;border:2px solid #4a4a5e;border-radius:8px;padding:14px 10px;}
+.selection-title{text-align:center;font-size:1em;color:#c0b090;margin-bottom:10px;}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.geju-btn{padding:10px 6px;font-size:1em;border:2px solid #4a4a5e;border-radius:6px;background:#2a2a38;color:#c8c0b0;cursor:pointer;transition:all .15s;text-align:center;font-family:inherit;}
+.geju-btn:hover{border-color:#8a7a5a;background:#333348;}
+.geju-btn.selected{border-color:#d4a84b;background:#3a3420;color:#f0d060;}
+.combo-row{display:flex;align-items:center;gap:8px;justify-content:center;}
+.combo-row label{font-size:.9em;color:#b8a88a;white-space:nowrap;}
+.combo-row select{flex:1;max-width:260px;padding:8px;font-size:.9em;border:2px solid #4a4a5e;border-radius:6px;background:#2a2a38;color:#c8c0b0;font-family:inherit;cursor:pointer;}
+.combo-row select.selected{border-color:#d4a84b;}
+.submit-btn{display:block;margin:14px auto 0;padding:10px 40px;font-size:1.1em;font-weight:bold;border:none;border-radius:8px;background:#8b6914;color:#f5e6c8;cursor:pointer;letter-spacing:.1em;font-family:inherit;transition:background .15s;}
+.submit-btn:hover{background:#a07d1a;}
+.submit-btn:active{background:#6b500f;}
+
+.feedback{text-align:center;min-height:2em;font-size:1.05em;font-weight:bold;padding:8px;margin-top:4px;border-radius:6px;width:100%;transition:opacity .3s;}
+.feedback.correct{color:#5cb85c;}
+.feedback.wrong{color:#e06060;}
+.feedback .detail{font-weight:normal;font-size:.85em;margin-top:4px;color:#d4a84b;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="title">八字格局練習</div>
+  <div class="score">第 <span id="qNum">1</span> 題 | 正確: <span id="cOk">0</span> | 錯誤: <span id="cErr">0</span></div>
+
+  <div class="pillars-wrapper">
+    <div class="pillar-headers"><span>年柱</span><span>月柱</span><span>日柱</span><span>時柱</span></div>
+    <div class="pillars-row" id="pRow"></div>
+    <div class="hidden-stems" id="hsRow"></div>
+    <button class="toggle-hs-btn" id="hsToggle">隱藏地支藏干</button>
+  </div>
+
+  <div class="selection-area">
+    <div class="selection-title">請選擇格局</div>
+    <div class="btn-grid" id="bGrid"></div>
+    <div class="combo-row">
+      <label for="cSel">複合格局：</label>
+      <select id="cSel"><option value="">-- 請選擇複合格局 --</option></select>
+    </div>
+    <button class="submit-btn" id="sBtn">送出答案</button>
+  </div>
+
+  <div class="feedback" id="fb"></div>
+</div>
+
+<script>
+// ===========================
+// DATA
+// ===========================
+var TG = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+var DZ = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+
+var TG_ATTR = {
+  '甲':{e:'木',y:0},'乙':{e:'木',y:1},'丙':{e:'火',y:0},'丁':{e:'火',y:1},
+  '戊':{e:'土',y:0},'己':{e:'土',y:1},'庚':{e:'金',y:0},'辛':{e:'金',y:1},
+  '壬':{e:'水',y:0},'癸':{e:'水',y:1}
+}; // y:0=陽,1=陰
+
+var HIDDEN = {
+  '子':['癸'],'丑':['己','癸','辛'],'寅':['甲','丙','戊'],'卯':['乙'],
+  '辰':['戊','乙','癸'],'巳':['丙','庚','戊'],'午':['丁','己'],
+  '未':['己','丁','乙'],'申':['庚','壬','戊'],'酉':['辛'],
+  '戌':['戊','辛','丁'],'亥':['壬','甲']
+};
+
+var SANHE = { '寅午戌':'火','巳酉丑':'金','申子辰':'水','亥卯未':'木' };
+var SANHUI = { '寅卯辰':'木','巳午未':'火','申酉戌':'金','亥子丑':'水' };
+
+var YANGREN = {
+  '甲':'卯','乙':'寅','丙':'午','丁':'巳','戊':'午',
+  '己':'巳','庚':'酉','辛':'申','壬':'子','癸':'亥'
+};
+
+var SINGLE_LIST = [
+  '正官格','七殺格','正財格','偏財格',
+  '正印格','偏印格','食神格','傷官格',
+  '羊刃格','無格局'
+];
+
+var COMBO_LIST = [];
+(function(){
+  var cats = {
+    '官殺':['正官格','七殺格'],'財':['正財格','偏財格'],
+    '印':['正印格','偏印格'],'食傷':['食神格','傷官格']
+  };
+  var keys = Object.keys(cats);
+  for(var i=0;i<keys.length;i++){
+    for(var j=i+1;j<keys.length;j++){
+      var a=cats[keys[i]], b=cats[keys[j]];
+      for(var ai=0;ai<a.length;ai++)
+        for(var bj=0;bj<b.length;bj++)
+          COMBO_LIST.push(a[ai]+'兼'+b[bj]);
+    }
+  }
+})();
+
+// ===========================
+// HELPERS
+// ===========================
+function getShiShen(riTG, otherTG){
+  if(riTG===otherTG) return '比肩';
+  var r=TG_ATTR[riTG], o=TG_ATTR[otherTG];
+  var sameYin=(r.y===o.y);
+  if(r.e===o.e) return sameYin?'比肩':'劫財';
+  var rel=_rel(r.e,o.e);
+  if(rel==='g')return sameYin?'食神':'傷官';
+  if(rel==='k')return sameYin?'偏財':'正財';
+  if(rel==='K')return sameYin?'七殺':'正官';
+  if(rel==='s')return sameYin?'偏印':'正印';
+  return '';
+}
+
+function _rel(myE, otherE){
+  var seq=['木','火','土','金','水'];
+  var mi=seq.indexOf(myE), oi=seq.indexOf(otherE);
+  if(mi===oi)return'=';
+  if((mi+1)%5===oi)return'g'; //我生
+  if((mi+2)%5===oi)return'k'; //我剋
+  if((mi+3)%5===oi)return'K'; //剋我
+  return's'; //生我
+}
+
+function ssToGeju(ss){
+  var m={'正官':'正官格','七殺':'七殺格','正財':'正財格','偏財':'偏財格',
+          '正印':'正印格','偏印':'偏印格','食神':'食神格','傷官':'傷官格'};
+  return m[ss]||'';
+}
+
+function ssToPianGeju(ss){
+  var cat=_ssCat(ss);
+  if(cat==='官殺')return'七殺格';
+  if(cat==='財')return'偏財格';
+  if(cat==='印')return'偏印格';
+  if(cat==='食傷')return'傷官格';
+  return'';
+}
+
+function _ssCat(ss){
+  if(ss==='比肩'||ss==='劫財')return'比劫';
+  if(ss==='正官'||ss==='七殺')return'官殺';
+  if(ss==='正財'||ss==='偏財')return'財';
+  if(ss==='正印'||ss==='偏印')return'印';
+  if(ss==='食神'||ss==='傷官')return'食傷';
+  return'';
+}
+
+function prank(p){ return ({A:0,B:1,C:2,D:3})[p] ?? 99; }
+
+function _elemToGeju(riTG, elem){
+  var r=TG_ATTR[riTG];
+  if(r.e===elem) return null;
+  var rel=_rel(r.e,elem);
+  if(rel==='s')return'偏印格';
+  if(rel==='K')return'七殺格';
+  if(rel==='g')return'傷官格';
+  if(rel==='k')return'偏財格';
+  return null;
+}
+
+// ===========================
+// 格局引擎
+// ===========================
+function analyzeBazi(bz){
+  var riTG=bz.day.stem;
+  var pillars=['year','month','day','hour'];
+  var pName={year:'年',month:'月',day:'日',hour:'時'};
+  var result={singleGeju:null,comboGeju:null,isCombo:false,detail:''};
+
+  // --- 收集天干(非日主、非比劫)---
+  var tgEntries=[];
+  for(var p=0;p<pillars.length;p++){
+    var k=pillars[p], tg=bz[k].stem;
+    if(tg===riTG) continue;
+    var ss=getShiShen(riTG,tg);
+    if(_ssCat(ss)==='比劫') continue;
+    tgEntries.push({tg:tg, pillar:k, ss:ss});
+  }
+
+  // --- 天透地藏: 為每個天干找最高優先級的根 ---
+  var candidates=[];
+  for(var e=0;e<tgEntries.length;e++){
+    var ent=tgEntries[e], bestForTg=null;
+    for(var p2=0;p2<pillars.length;p2++){
+      var dk=pillars[p2], dz=bz[dk].branch;
+      var hidden=HIDDEN[dz];
+      if(hidden.indexOf(ent.tg)>=0){
+        var pri,det;
+        if(ent.pillar==='month'&&dk==='month'){
+          pri='A'; det='月支透月干';
+        }else if(dk==='month'&&(ent.pillar==='year'||ent.pillar==='hour')){
+          pri='B'; det='月支不透月干，透於'+pName[ent.pillar]+'干';
+        }else if(ent.pillar==='month'&&dk!=='month'){
+          pri='C'; det='月干坐根於'+pName[dk]+'支';
+        }else{
+          pri='D'; det=pName[ent.pillar]+'干通根於'+pName[dk]+'支';
+        }
+        if(!bestForTg||prank(pri)<prank(bestForTg.pri)){
+          bestForTg={ss:ent.ss, geju:ssToGeju(ent.ss), pri:pri, pillar:ent.pillar, det:det};
+        }
+      }
+    }
+    if(bestForTg) candidates.push(bestForTg);
+  }
+
+  // --- 同類別合併，取最佳優先級，一律用偏格名 ---
+  var merged=[];
+  var catMap={};
+  for(var c=0;c<candidates.length;c++){
+    var cand=candidates[c];
+    var cat=_ssCat(cand.ss);
+    if(!catMap[cat]||prank(cand.pri)<prank(catMap[cat].pri)){
+      var gejuName=ssToPianGeju(cand.ss);
+      catMap[cat]={geju:gejuName, pri:cand.pri, pillar:cand.pillar, det:cand.det, cat:cat};
+    }
+  }
+  for(var km in catMap) merged.push(catMap[km]);
+
+  // 若合併後只剩一筆但 ten神曾有多筆同類需確認，已處理
+
+  merged.sort(function(a,b){return prank(a.pri)-prank(b.pri);});
+
+  if(merged.length===1){
+    result.singleGeju=merged[0].geju;
+    result.detail=merged[0].det+' -> '+merged[0].geju;
+    return result;
+  }
+
+  if(merged.length>=2){
+    // 檢查是否同優先級
+    var topPri=merged[0].pri;
+    var samePri=merged.filter(function(m){return m.pri===topPri;});
+    if(samePri.length>=2){
+      // 同優先級：月柱優先，其餘按位置
+      samePri.sort(function(a,b){
+        var pa=['month','year','day','hour'].indexOf(a.pillar);
+        var pb=['month','year','day','hour'].indexOf(b.pillar);
+        return pa-pb;
+      });
+      result.comboGeju=samePri[0].geju+'兼'+samePri[1].geju;
+      result.isCombo=true;
+      result.detail='天透地藏（同優先級 '+topPri+'）-> '+result.comboGeju;
+    }else{
+      // 不同優先級：取前二
+      result.comboGeju=merged[0].geju+'兼'+merged[1].geju;
+      result.isCombo=true;
+      result.detail='天透地藏（'+merged[0].det+' 優先於 '+merged[1].det+'）-> '+result.comboGeju;
+    }
+    return result;
+  }
+
+  // --- 三合三會 ---
+  var brs=[bz.year.branch,bz.month.branch,bz.day.branch,bz.hour.branch];
+
+  // 檢查辰戌丑未全
+  var earthAll=['辰','戌','丑','未'];
+  var eaCount=0;
+  for(var i=0;i<earthAll.length;i++){ if(brs.indexOf(earthAll[i])>=0) eaCount++; }
+  if(eaCount===4){
+    var geju=_elemToGeju(riTG,'土');
+    if(geju){
+      result.singleGeju=geju;
+      result.detail='辰戌丑未全（土）-> '+geju;
+      return result;
+    }
+  }
+
+  // 三合
+  var shKeys=Object.keys(SANHE);
+  for(var sh=0;sh<shKeys.length;sh++){
+    var chars=shKeys[sh].split('');
+    var cnt=0;
+    for(var bi=0;bi<chars.length;bi++){ if(brs.indexOf(chars[bi])>=0) cnt++; }
+    if(cnt>=3){
+      var g=_elemToGeju(riTG,SANHE[shKeys[sh]]);
+      if(g){ result.singleGeju=g; result.detail='三合'+SANHE[shKeys[sh]]+' -> '+g; return result; }
+    }
+  }
+
+  // 三會
+  var shhKeys=Object.keys(SANHUI);
+  for(var sh2=0;sh2<shhKeys.length;sh2++){
+    var chars2=shhKeys[sh2].split('');
+    var cnt2=0;
+    for(var bi2=0;bi2<chars2.length;bi2++){ if(brs.indexOf(chars2[bi2])>=0) cnt2++; }
+    if(cnt2>=3){
+      var g2=_elemToGeju(riTG,SANHUI[shhKeys[sh2]]);
+      if(g2){ result.singleGeju=g2; result.detail='三會'+SANHUI[shhKeys[sh2]]+' -> '+g2; return result; }
+    }
+  }
+
+  // --- 同類相聚（月柱：月干十神與月支藏干同類合取）---
+  var mStem=bz.month.stem, mStemSS=getShiShen(riTG,mStem);
+  var mStemCat=_ssCat(mStemSS);
+  var mBranch=bz.month.branch, mHidden=HIDDEN[mBranch];
+  var tcMatch=false;
+  for(var h=0;h<mHidden.length;h++){
+    var hss=getShiShen(riTG,mHidden[h]);
+    if(_ssCat(hss)===mStemCat&&mStemCat!=='比劫'){tcMatch=true;break;}
+  }
+  if(tcMatch){
+    var tcGeju=ssToPianGeju(mStemSS);
+    result.singleGeju=tcGeju;
+    result.detail='同類相聚（月柱正偏同類）-> '+tcGeju;
+    return result;
+  }
+
+  // --- 羊刃 ---
+  var yrDz=YANGREN[riTG];
+  if(bz.day.branch===yrDz||bz.month.branch===yrDz){
+    result.singleGeju='羊刃格';
+    result.detail='日支或月支為羊刃（'+yrDz+'）-> 羊刃格';
+    return result;
+  }
+
+  // --- 無格局 ---
+  result.singleGeju='無格局';
+  result.detail='無天透地藏、無三合三會、無同類相聚、無羊刃';
+  return result;
+}
+
+// ===========================
+// 出題
+// ===========================
+function randTG(){return TG[Math.floor(Math.random()*10)];}
+function randDZ(){return DZ[Math.floor(Math.random()*12)];}
+
+function randomBazi(){
+  return {
+    year:{stem:randTG(),branch:randDZ()},
+    month:{stem:randTG(),branch:randDZ()},
+    day:{stem:randTG(),branch:randDZ()},
+    hour:{stem:randTG(),branch:randDZ()}
+  };
+}
+
+function generateQuestion(){
+  for(var t=0;t<500;t++){
+    var bz=randomBazi();
+    var ans=analyzeBazi(bz);
+    if(ans.singleGeju||ans.comboGeju) return {bazi:bz,answer:ans};
+  }
+  var fb=randomBazi();
+  return {bazi:fb,answer:analyzeBazi(fb)};
+}
+
+// ===========================
+// UI
+// ===========================
+var curQ=null, qNum=1, cOk=0, cErr=0, waiting=false, selBtn=null, hsVis=true;
+
+function init(){
+  buildBtns();
+  buildCombo();
+  document.getElementById('hsToggle').addEventListener('click',toggleHs);
+  document.getElementById('sBtn').addEventListener('click',onSubmit);
+  loadNext();
+}
+
+function buildBtns(){
+  var grid=document.getElementById('bGrid');
+  for(var i=0;i<SINGLE_LIST.length;i++){
+    var btn=document.createElement('button');
+    btn.className='geju-btn'; btn.textContent=SINGLE_LIST[i];
+    btn.setAttribute('data-gj',SINGLE_LIST[i]);
+    btn.addEventListener('click',function(){
+      if(waiting)return;
+      var all=document.querySelectorAll('.geju-btn');
+      for(var a=0;a<all.length;a++)all[a].classList.remove('selected');
+      this.classList.add('selected');
+      selBtn=this.getAttribute('data-gj');
+      document.getElementById('cSel').value='';
+      document.getElementById('cSel').classList.remove('selected');
+    });
+    grid.appendChild(btn);
+  }
+}
+
+function buildCombo(){
+  var sel=document.getElementById('cSel');
+  for(var i=0;i<COMBO_LIST.length;i++){
+    var opt=document.createElement('option');
+    opt.value=COMBO_LIST[i]; opt.textContent=COMBO_LIST[i];
+    sel.appendChild(opt);
+  }
+  sel.addEventListener('change',function(){
+    if(waiting)return;
+    if(this.value){
+      var all=document.querySelectorAll('.geju-btn');
+      for(var a=0;a<all.length;a++)all[a].classList.remove('selected');
+      selBtn=this.value; this.classList.add('selected');
+    }else{this.classList.remove('selected');selBtn=null;}
+  });
+}
+
+function loadNext(){
+  clearSel();
+  document.getElementById('fb').innerHTML='';
+  document.getElementById('fb').className='feedback';
+  waiting=false;
+  curQ=generateQuestion();
+  renderBazi(curQ.bazi);
+  updateScore();
+}
+
+function renderBazi(bz){
+  var row=document.getElementById('pRow');
+  var hs=document.getElementById('hsRow');
+  var order=['year','month','day','hour'];
+  row.innerHTML=''; hs.innerHTML='';
+  for(var p=0;p<order.length;p++){
+    var k=order[p];
+    var col=document.createElement('div'); col.className='pillar';
+    col.innerHTML='<span class="stem">'+bz[k].stem+'</span><span class="branch">'+bz[k].branch+'</span>';
+    row.appendChild(col);
+    var hc=document.createElement('div'); hc.className='hs-col';
+    hc.innerHTML=HIDDEN[bz[k].branch].join('<br>');
+    hs.appendChild(hc);
+  }
+  if(!hsVis){hs.classList.add('hidden');document.getElementById('hsToggle').textContent='顯示地支藏干';}
+}
+
+function toggleHs(){
+  hsVis=!hsVis;
+  var hs=document.getElementById('hsRow'), btn=document.getElementById('hsToggle');
+  if(hsVis){hs.classList.remove('hidden');btn.textContent='隱藏地支藏干';}
+  else{hs.classList.add('hidden');btn.textContent='顯示地支藏干';}
+}
+
+function clearSel(){
+  var all=document.querySelectorAll('.geju-btn');
+  for(var a=0;a<all.length;a++)all[a].classList.remove('selected');
+  document.getElementById('cSel').value='';
+  document.getElementById('cSel').classList.remove('selected');
+  selBtn=null;
+}
+
+function onSubmit(){
+  if(waiting)return;
+  if(!selBtn){alert('請先選擇一個格局！');return;}
+  var ans=curQ.answer;
+  var correct=ans.isCombo?ans.comboGeju:ans.singleGeju;
+  var fb=document.getElementById('fb');
+  if(selBtn===correct){
+    cOk++; updateScore();
+    fb.innerHTML='正確';
+    fb.className='feedback correct'; waiting=true;
+    setTimeout(function(){qNum++;loadNext();},1000);
+  }else{
+    cErr++; updateScore();
+    fb.innerHTML='答案應為：<span style="color:#d4a84b">'+correct+'</span><div class="detail">'+ans.detail+'</div>';
+    fb.className='feedback wrong'; waiting=true;
+    setTimeout(function(){
+      document.addEventListener('click',nextClick);
+      document.addEventListener('touchend',nextClick);
+    },100);
+  }
+}
+
+function nextClick(e){
+  if(e.target.id==='sBtn')return;
+  document.removeEventListener('click',nextClick);
+  document.removeEventListener('touchend',nextClick);
+  qNum++; loadNext();
+}
+
+function updateScore(){
+  document.getElementById('qNum').textContent=qNum;
+  document.getElementById('cOk').textContent=cOk;
+  document.getElementById('cErr').textContent=cErr;
+}
+
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
